@@ -42,40 +42,63 @@ test_pos <- df1[df1$Date >= start_date,]
 cont_pre <- df2[df2$Date < start_date,]
 cont_pos <- df2[df2$Date >= start_date,]
 
-
 # 1) Draw graphs of both test and control sets. add the date of test as a v-line
-# ---------------------- PLOT ----------------
-test_message <- ''
-control_message <- ''
+raw_graph <- function() {
+  # Plot the sales data with a vertical line at the start date of the test
+  # create subplots
+  fig <- ggplot() +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          axis.line = element_line(colour = "black"), 
+          axis.text = element_text(size=10),
+          panel.border = element_blank(),
+          legend.position = "bottom",
+          axis.text.x = element_text(angle = 90, hjust = 1))
+  
+  # subplot 1: test
+  subplot1 <- fig + 
+    geom_line(data = test_pre, aes(x = Date, y = SuccessMetric, color = "Pre"), size = 1) +
+    geom_line(data = test_pos, aes(x = Date, y = SuccessMetric, color = "Post"), size = 1) +
+    scale_color_manual(name = "", 
+                       values = c("Pre" = "blue", "Post" = "red")) +
+    labs(title = "Test") +
+    theme(legend.title = element_blank())
+  
+  # add vertical line for start date
+  subplot1 <- subplot1 + geom_vline(xintercept = as.numeric(start_date), linetype = "dashed", color = "red")
+  
+  # subplot 2: control
+  subplot2 <- fig + 
+    geom_line(data = cont_pre, aes(x = Date, y = SuccessMetric, color = "Pre"), size = 1) +
+    geom_line(data = cont_pos, aes(x = Date, y = SuccessMetric, color = "Post"), size = 1) +
+    scale_color_manual(name = "", 
+                       values = c("Pre" = "blue", "Post" = "red")) +
+    labs(title = "Control") +
+    theme(legend.title = element_blank())
+  
+  # add vertical line for start date
+  subplot2 <- subplot2 + geom_vline(xintercept = as.numeric(start_date), linetype = "dashed", color = "red")
+  
+  # combine subplots
+  combined_plot <- subplot1 + subplot2 + plot_layout(nrow = 2, heights = c(0.5, 0.5))
 
-if (nrow(test_pre) == 0) test_message <- '*Test Groups Pre-Test is empty'
-if (nrow(test_pos) == 0) test_message <- '*Test Groups Post-Test is empty'
-if (nrow(cont_pre) == 0) control_message <- '*Control Groups Pre-Test is empty'
-if (nrow(cont_pos) == 0) control_message <- '*Control Groups Post-Test is empty'
+}
+raw_graph()
 
-jpeg(filename = "Plot_of_Input.jpg", pointsize =24, width=20, height=20, units="cm", res=300, quality=600, bg = "white", restoreConsole = TRUE)
-# Line plot with multiple groups
-p1 <- ggplot(data=df1, aes(x=Date, y=SuccessMetric, group=pre_post), size=1) +
-  geom_line(aes(color=pre_post))+
-#  geom_point(aes(color=pre_post)) +
-  scale_color_manual(name = "", 
-                     values = c("Pre" = "blue", "Post" = "red")) +
-  labs(title = "Test", subtitle = test_message) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  geom_vline(xintercept = as.numeric(start_date), linetype = "dashed", color = "red")
+tryCatch({
+  print(raw_graph())
+  jpeg(filename = "Plot_of_Input.jpg", pointsize =12, quality = 200, bg = "white", res = NA, restoreConsole = TRUE)
+  combined_plot
+  dev.off()
+}, error = function(e) {
+  message('An error occurred')
+  if (nrow(test_pre) == 0) message('Test Groups Pre-Test is empty')
+  if (nrow(test_pos) == 0) message('Test Groups Post-Test is empty')
+  if (nrow(cont_pre) == 0) message('Control Groups Pre-Test is empty')
+  if (nrow(cont_pos) == 0) message('Control Groups Post-Test is empty')
+})
 
-p2 <- ggplot(data=df2, aes(x=Date, y=SuccessMetric, group=pre_post), size=1) +
-  geom_line(aes(color=pre_post))+
-#  geom_point(aes(color=pre_post)) +
-  scale_color_manual(name = "", 
-                     values = c("Pre" = "blue", "Post" = "red")) +
-  labs(title = "Control", subtitle = control_message) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  geom_vline(xintercept = as.numeric(start_date), linetype = "dashed", color = "red")
 
-combined_plot <- p1 + p2 + plot_layout(nrow = 2) 
-combined_plot
-dev.off()
 
 # perform difference-in-differences analysis
 test_pre_mean <- mean(test_pre$SuccessMetric)
@@ -127,3 +150,5 @@ output <- data.frame(p_value = c(p_value_origin),
 print(output)
 
 write.csv(output, "statistical_significance_output.csv", row.names=FALSE)
+
+#---------------------
